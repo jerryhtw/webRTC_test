@@ -18,36 +18,34 @@ const httpServer = http.createServer(app);
 const wsServer = SocketIO(httpServer);
 
 wsServer.on("connection", socket=>{
+    socket["nickname"] = "Anonymous"
     // app.js에서 만든 "enter_room" 이벤트에 대해 반응
-    socket.on("enter_room", (msg, callback)=> {
-        console.log(msg);
-        setTimeout(()=>{
-            callback();
-        }, 10000);
+    socket.on("enter_room", (roomName, callback)=> {
+        // console.log(roomName);
+        // join을 통해 roomName 이름의 room에 입장
+        socket.join(roomName);
+        // socket.to => 특정 room에 msg 보내기
+        // socket.leave => 특정 room 나가기
+        // socket.id => client socket의 고유 id를 알 수 있음
+
+        callback();
+
+        socket.to(roomName).emit("welcome", socket.nickname);
+        
     });
+
+    socket.on("disconnecting", ()=>{
+        socket.rooms.forEach(room => {
+            socket.to(room).emit("bye", socket.nickname)
+        });
+    })
+
+    socket.on("new_message", (msg, roomName, callback)=>{
+        socket.to(roomName).emit("new_message", `${socket.nickname} : ${msg}`)
+        callback()
+    })
+    socket.on("nickname", nickname =>socket["nickname"] = nickname);    
 });
 
-
-// const sockets = [];
-
-// wss.on("connection", (socket)=>{
-//     // 연결된 client 저장 
-//     sockets.push(socket);
-//     // default nickname 설정
-//     socket["nickname"] = "anonymous";
-//     console.log("Connected to Browser");
-//     socket.on("message", (message)=>{
-//         const parsed = JSON.parse(message);
-//         if(parsed.type === "nickname"){
-//             socket["nickname"] = parsed.payload;
-//         }else if((parsed.type === "new_message")){
-//             sockets.forEach(aSocket=>aSocket.send(`${socket.nickname} : ${parsed.payload}`));
-//         }
-//     })
-//     socket.on("close", ()=>{
-        
-//         console.log("Disconnected from the browser");
-//     });
-// });
 
 httpServer.listen(3000, handleListen);
