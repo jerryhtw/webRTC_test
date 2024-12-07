@@ -17,16 +17,27 @@ const handleListen = () => console.log(`Listening on http://localhost:3000`);
 const server = http.createServer(app);
 const wss = new WebSocket.Server({server});
 
+const sockets = [];
+
 wss.on("connection", (socket)=>{
+    // 연결된 client 저장 
+    sockets.push(socket);
+    // default nickname 설정
+    socket["nickname"] = "anonymous";
     //console.log(socket);
     console.log("Connected to Browser");
     socket.on("message", (message)=>{
-        console.log("Incoming message is : ", message.toString());
+        const parsed = JSON.parse(message);
+        if(parsed.type === "nickname"){
+            socket["nickname"] = parsed.payload;
+        }else if((parsed.type === "new_message")){
+            sockets.forEach(aSocket=>aSocket.send(`${socket.nickname} : ${parsed.payload}`));
+        }
     })
     socket.on("close", ()=>{
+        
         console.log("Disconnected from the browser");
     });
-    socket.send("hello!");
 });
 
 server.listen(3000, handleListen);
