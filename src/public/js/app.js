@@ -93,6 +93,14 @@ function handleCameraClick(){
 async function handleCameraChange(){
     // cameraSelect.value => deviceID 출력
     await getMedia(cameraSelect.value);
+    if(myPeerConnection){
+        //myPeerConnection
+        const videoTrack = myStream.getVideoTracks()[0]
+        const videoSender = myPeerConnection.getSenders().find(sender=>{
+            sender.track.kind == "video"
+        })
+        videoSender.replaceTrack(videoTrack)
+    }
 }
 
 
@@ -160,8 +168,6 @@ function makeConnection(){
     myStream
         .getTracks()
         .forEach(track => myPeerConnection.addTrack(track, myStream))
-    // peer A가 peer B에게 make offer를 하고
-    // peer B는 받은 offer에 대해서 make answer를 하면 둘 사이에 webRTC connection이 만들어진다. 
      
 }
 
