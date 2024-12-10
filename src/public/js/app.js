@@ -8,6 +8,7 @@ const cameraSelect = document.getElementById("cameras")
 let muted = false;
 let cameraOff = false; 
 let roomName;
+let myDataChannel;
 
 const call = document.getElementById("call")
 
@@ -133,6 +134,10 @@ welcomeForm.addEventListener("submit", handleWelcomeSubmit)
 // Step 1. 자신이 만든 방에 누군가 들어오면 offer를 생성해서 자신의 local description을 만들고,
 // 들어온 사람에게 offer를 전송
 socket.on("welcome", async ()=>{
+    myDataChannel = myPeerConnection.createDataChannel("chat")
+    myDataChannel.addEventListener("message", (message)=>{
+        console.log(message)
+    })
     const offer = await myPeerConnection.createOffer()
     myPeerConnection.setLocalDescription(offer)
     socket.emit("offer", offer, roomName)
@@ -142,6 +147,12 @@ socket.on("welcome", async ()=>{
 // 그 후, answer를 만들고 이를 통해 자신의 local description을 만든다.
 // 만든 answer은 방의 생성자에게 전달
 socket.on("offer", async(offer) => {
+    myPeerConnection.addEventListener("datachannel", event=>{
+        myDataChannel = event.channel
+        myDataChannel.addEventListener("message", (msg)=>{
+            console.log(msg)
+        })
+    })
     myPeerConnection.setRemoteDescription(offer)
     const answer = await myPeerConnection.createAnswer()
     myPeerConnection.setLocalDescription(answer)
@@ -162,7 +173,20 @@ socket.on("ice", ice =>{
 // RTC 코드
 // 여기가 핵심!
 function makeConnection(){
-    myPeerConnection = new RTCPeerConnection()
+    // 구글에서 무료로 제공하는 STUN server 사용하기
+    myPeerConnection = new RTCPeerConnection({
+        icsServers : [
+            {
+                urls : [
+                    "stun:stun.l.google.com:19302",
+                    "stun:stun1.l.google.com:19302",
+                    "stun:stun2.l.google.com:19302",
+                    "stun:stun3.l.google.com:19302",
+                    "stun:stun4.l.google.com:19302",
+                ],
+            },
+        ],
+    })
     myPeerConnection.addEventListener("icecandidate", handleIce)
     myPeerConnection.addEventListener("addstream", handleAddStream)
     myStream
@@ -182,3 +206,25 @@ function handleAddStream(data){
     // console.log("My stream : ", myStream)
     peerFace.srcObject = data.stream
 }
+
+document.getElementById('roomForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    // Get the room name from the input field
+    const roomName = document.getElementById('roomNameInput').value.trim();
+    
+    if (roomName === "") {
+        alert("Please enter a room name.");
+        return;
+    }
+    
+    // Emit the event to join the room (assuming you are using socket.io)
+    socket.emit('joinRoom', roomName);
+
+    // Show the room name in the UI
+    document.getElementById('roomName').innerText = roomName;
+
+    // Hide the welcome message and show the call area
+    document.getElementById('welcome').style.display = 'none';
+    document.getElementById('call').style.display = 'block';
+});
